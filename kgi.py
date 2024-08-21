@@ -12,8 +12,8 @@ def uniform(sizes, low, high):
     return torch.rand(sizes) * (high - low) + low
 
 
-def kgi_layer(layer, knot_low=0.1, knot_high=0.9,
-              perturb_factor=0.2, kgi_by_bias=True):
+def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
+                       perturb_factor=0.2, kgi_by_bias=True):
     """
     Apply KGI to a layer
     :param layer: the target `nn.Linear`
@@ -53,8 +53,8 @@ def kgi_layer(layer, knot_low=0.1, knot_high=0.9,
     return layer
 
 
-def kgi_model(model, knot_low=0.1, knot_high=0.9,
-              perturb_factor=0.2, kgi_by_bias=True):
+def apply_kgi_to_model(model, knot_low=0.1, knot_high=0.9,
+                       perturb_factor=0.2, kgi_by_bias=True):
     """
     Apply KGI to a model
     :param model: the target `nn.Module`
@@ -66,5 +66,5 @@ def kgi_model(model, knot_low=0.1, knot_high=0.9,
     """
     for layer in model.modules():
         if isinstance(layer, torch.nn.Linear):
-            kgi_layer(layer, knot_low, knot_high,
-                      perturb_factor, kgi_by_bias)
+            apply_kgi_to_layer(layer, knot_low, knot_high,
+                               perturb_factor, kgi_by_bias)
