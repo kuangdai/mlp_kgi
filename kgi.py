@@ -1,17 +1,6 @@
 import torch
 
 
-def uniform(sizes, low, high):
-    """
-    Sample from uniform distribution U(`low`, `high`)
-    :param sizes: sizes of output
-    :param low: lower bound
-    :param high: upper bound
-    :return: sampled tensor
-    """
-    return torch.rand(sizes) * (high - low) + low
-
-
 def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
                        perturb_factor=0.2, kgi_by_bias=True):
     """
@@ -31,11 +20,11 @@ def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
     # for numerical stability, we do not allow zero bias
     if torch.all(torch.abs(b0) < torch.finfo(b0.dtype).eps):
         bound = torch.sqrt(3. / torch.tensor(m))  # use He
-        b0 = uniform(n, -bound, bound)
+        b0 = torch.rand(n) * 2 * bound - bound
         layer.bias.data = b0
 
     # sample knots
-    x_knot = uniform(m, low=knot_low, high=knot_high)
+    x_knot = torch.rand(m) * (knot_high - knot_low) + knot_low
 
     if kgi_by_bias:
         # compute b by KGI
