@@ -19,7 +19,7 @@ def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
 
     # for numerical stability, we do not allow zero bias
     if torch.all(torch.abs(b0) < torch.finfo(b0.dtype).eps):
-        bound = torch.sqrt(3. / torch.tensor(m))  # use He
+        bound = torch.sqrt(3. / torch.tensor(m))  # use He uniform
         b0 = torch.rand(n) * 2 * bound - bound
         layer.bias.data = b0
 
