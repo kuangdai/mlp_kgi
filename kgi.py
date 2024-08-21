@@ -3,7 +3,7 @@ import torch
 
 def uniform(sizes, low, high):
     """
-    Sample from uniform distribution U(low, high)
+    Sample from uniform distribution U(`low`, `high`)
     :param sizes: sizes of output
     :param low: lower bound
     :param high: upper bound
