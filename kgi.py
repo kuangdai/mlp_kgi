@@ -28,6 +28,12 @@ def kgi_layer(layer, knot_low=0.1, knot_high=0.9,
     w0 = layer.weight.data
     b0 = layer.bias.data
 
+    # for numerical stability, we do not allow zero bias
+    if torch.all(torch.abs(b0) < torch.finfo(b0.dtype).eps):
+        bound = torch.sqrt(3. / torch.tensor(m))  # use He
+        b0 = uniform(n, -bound, bound)
+        layer.bias.data = b0
+
     # sample knots
     x_knot = uniform(m, low=knot_low, high=knot_high)
 
@@ -35,20 +41,18 @@ def kgi_layer(layer, knot_low=0.1, knot_high=0.9,
         # compute b by KGI
         b_kgi = -torch.mv(w0, x_knot)
         # perturb b
-        if torch.all(torch.abs(b0) < torch.finfo(b0.dtype).eps):
-            # use He if b0 is zero
-            bound = torch.sqrt(3. / torch.tensor(m))
-            b0 = uniform(n, -bound, bound)
-        # assign to layer
         layer.bias.data = (1 - perturb_factor) * b_kgi + perturb_factor * b0
     else:
         # compute w by KGI
         x2 = torch.dot(x_knot, x_knot)
         wp = -torch.outer(b0, x_knot) / x2  # particular solution
         wh = w0 - torch.outer(torch.mv(w0, x_knot), x_knot) / x2  # homogenous solution
-        # combine the two by L1
-        alpha = (w0.abs().sum() - wp.abs().sum()) / wh.abs().sum()
-        w_kgi = wp + alpha * wh
+        if m > 1:
+            # combine the two by L1
+            alpha = (w0.abs().sum() - wp.abs().sum()) / wh.abs().sum()
+            w_kgi = wp + alpha * wh
+        else:
+            w_kgi = wp  # in this case, wh = 0
         # perturb w
         layer.weight.data = (1 - perturb_factor) * w_kgi + perturb_factor * w0
     return layer
