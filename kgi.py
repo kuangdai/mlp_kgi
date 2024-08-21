@@ -50,7 +50,6 @@ def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
         w_kgi = wp + wh
         # perturb w
         layer.weight.data = (1 - perturb_factor) * w_kgi + perturb_factor * w0
-    return layer
 
 
 def apply_kgi_to_model(model, knot_low=0.1, knot_high=0.9,
