@@ -47,12 +47,7 @@ def kgi_layer(layer, knot_low=0.1, knot_high=0.9,
         x2 = torch.dot(x_knot, x_knot)
         wp = -torch.outer(b0, x_knot) / x2  # particular solution
         wh = w0 - torch.outer(torch.mv(w0, x_knot), x_knot) / x2  # homogenous solution
-        if m > 1:
-            # combine the two by L1
-            alpha = (w0.abs().sum() - wp.abs().sum()) / wh.abs().sum()
-            w_kgi = wp + alpha * wh
-        else:
-            w_kgi = wp  # in this case, wh = 0
+        w_kgi = wp + wh
         # perturb w
         layer.weight.data = (1 - perturb_factor) * w_kgi + perturb_factor * w0
     return layer
