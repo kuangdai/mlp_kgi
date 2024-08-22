@@ -78,7 +78,7 @@ def apply_kgi_to_model(model, knot_low=0.1, knot_high=0.9,
         for layer in model.modules():
             if isinstance(layer, torch.nn.Linear):
                 apply_kgi_to_layer(layer, knot_low, knot_high,
-                                   perturb_factor, kgi_by_bias)
+                                   perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
         return
 
     ###################################
@@ -93,5 +93,5 @@ def apply_kgi_to_model(model, knot_low=0.1, knot_high=0.9,
             "When `sampled_inputs` is provided, the model must be a pure MLP."
         apply_kgi_to_layer(layer, None, None,  # noqa
                            sampled_inputs, sampled_inputs_clip_ratio,
-                           perturb_factor, kgi_by_bias)
+                           perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
         sampled_inputs = activation(layer.forward(sampled_inputs))
