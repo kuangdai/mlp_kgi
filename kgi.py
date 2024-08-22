@@ -1,13 +1,20 @@
+import warnings
+
 import torch
+
+warnings.simplefilter("once")
 
 
 def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
+                       sampled_inputs=None, sampled_inputs_clip_ratio=0.1,
                        perturb_factor=0.2, kgi_by_bias=True):
     """
     Apply KGI to a layer
     :param layer: the target `nn.Linear`
     :param knot_low: lower bound of knot positions
     :param knot_high: upper bound of knot positions
+    :param sampled_inputs: sampled inputs for automatically determining bounds
+    :param sampled_inputs_clip_ratio: ratio to clip sampled inputs at both min/max ends
     :param perturb_factor: factor to perturb the KGI-based weight or bias
     :param kgi_by_bias: whether to achieve KGI by bias (`True`) or weight (`False`)
     :return: the re-initialized `nn.Linear`
@@ -19,11 +26,22 @@ def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
 
     # for numerical stability, we do not allow zero bias
     if torch.all(torch.abs(b0) < torch.finfo(b0.dtype).eps):
-        bound = torch.sqrt(3. / torch.tensor(m))  # use He uniform
+        bound = torch.sqrt(3. / torch.tensor(m))  # use He Uniform
         b0 = torch.rand(n) * 2 * bound - bound
         layer.bias.data = b0
+        warnings.warn("KGI does not allow zero bias. "
+                      "The bias is now sampled from He Uniform before KGI.", UserWarning)
 
     # sample knots
+    if sampled_inputs is not None:
+        # automatically determine bounds
+        assert knot_low is None and knot_high is None, \
+            "When `sampled_inputs` is provided, `knot_low` and `knot_high` must be None."
+        min_ = sampled_inputs.min()
+        max_ = sampled_inputs.max()
+        margin = (max_ - min_) * sampled_inputs_clip_ratio
+        knot_low = min_ + margin
+        knot_high = max_ - margin
     x_knot = torch.rand(m) * (knot_high - knot_low) + knot_low
 
     if kgi_by_bias:
@@ -42,17 +60,38 @@ def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
 
 
 def apply_kgi_to_model(model, knot_low=0.1, knot_high=0.9,
+                       sampled_inputs=None, sampled_inputs_clip_ratio=0.1, activation=None,
                        perturb_factor=0.2, kgi_by_bias=True):
     """
     Apply KGI to a model
     :param model: the target `nn.Module`
     :param knot_low: lower bound of knot positions
     :param knot_high: upper bound of knot positions
+    :param sampled_inputs: sampled inputs for automatically determining bounds
+    :param sampled_inputs_clip_ratio: ratio to clip sampled inputs at both min/max ends
+    :param activation: activation functions, used when `sampled_inputs` is provided
     :param perturb_factor: factor to perturb the KGI-based weight or bias
     :param kgi_by_bias: whether to achieve KGI by bias (`True`) or weight (`False`)
     :return: the re-initialized `nn.Module`
     """
-    for layer in model.modules():
-        if isinstance(layer, torch.nn.Linear):
-            apply_kgi_to_layer(layer, knot_low, knot_high,
-                               perturb_factor, kgi_by_bias)
+    if sampled_inputs is None:
+        for layer in model.modules():
+            if isinstance(layer, torch.nn.Linear):
+                apply_kgi_to_layer(layer, knot_low, knot_high,
+                                   perturb_factor, kgi_by_bias)
+        return
+
+    ###################################
+    # automatic bounds layer by layer #
+    ###################################
+    assert knot_low is None and knot_high is None, \
+        "When `sampled_inputs` is provided, `knot_low` and `knot_high` must be None."
+    assert activation is not None, \
+        "When `sampled_inputs` is provided, `activation` must be provided."
+    for i, layer in enumerate(model.modules()):
+        assert isinstance(layer, torch.nn.Linear), \
+            "When `sampled_inputs` is provided, the model must be a pure MLP."
+        apply_kgi_to_layer(layer, None, None,  # noqa
+                           sampled_inputs, sampled_inputs_clip_ratio,
+                           perturb_factor, kgi_by_bias)
+        sampled_inputs = activation(layer.forward(sampled_inputs))
