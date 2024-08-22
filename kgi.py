@@ -2,10 +2,10 @@ import warnings
 
 import torch
 
-warnings.simplefilter("once")
+warnings.simplefilter("once", UserWarning)
 
 
-def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
+def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
                        sampled_inputs=None, sampled_inputs_clip_ratio=0.1,
                        perturb_factor=0.2, kgi_by_bias=True):
     """
@@ -36,12 +36,15 @@ def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
     if sampled_inputs is not None:
         # automatically determine bounds
         assert knot_low is None and knot_high is None, \
-            "When `sampled_inputs` is provided, `knot_low` and `knot_high` must be None."
+            "When `sampled_inputs` is provided, `knot_low` and `knot_high` must be `None`."
         min_ = sampled_inputs.min()
         max_ = sampled_inputs.max()
         margin = (max_ - min_) * sampled_inputs_clip_ratio
         knot_low = min_ + margin
         knot_high = max_ - margin
+    else:
+        assert knot_low is not None and knot_high is not None, \
+            "When `sampled_inputs` is `None`, `knot_low` and `knot_high` must be provided."
     x_knot = torch.rand(m) * (knot_high - knot_low) + knot_low
 
     if kgi_by_bias:
@@ -59,7 +62,7 @@ def apply_kgi_to_layer(layer, knot_low=0.1, knot_high=0.9,
         layer.weight.data = (1 - perturb_factor) * w_kgi + perturb_factor * w0
 
 
-def apply_kgi_to_model(model, knot_low=0.1, knot_high=0.9,
+def apply_kgi_to_model(model, knot_low=None, knot_high=None,
                        sampled_inputs=None, sampled_inputs_clip_ratio=0.1, activation=None,
                        perturb_factor=0.2, kgi_by_bias=True):
     """
@@ -75,9 +78,11 @@ def apply_kgi_to_model(model, knot_low=0.1, knot_high=0.9,
     :return: the re-initialized `nn.Module`
     """
     if sampled_inputs is None:
-        for layer in model.modules():
+        assert knot_low is not None and knot_high is not None, \
+            "When `sampled_inputs` is `None`, `knot_low` and `knot_high` must be provided."
+        for layer in model.children():
             if isinstance(layer, torch.nn.Linear):
-                apply_kgi_to_layer(layer, knot_low, knot_high,
+                apply_kgi_to_layer(layer, knot_low=knot_low, knot_high=knot_high,
                                    perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
         return
 
@@ -85,13 +90,13 @@ def apply_kgi_to_model(model, knot_low=0.1, knot_high=0.9,
     # automatic bounds layer by layer #
     ###################################
     assert knot_low is None and knot_high is None, \
-        "When `sampled_inputs` is provided, `knot_low` and `knot_high` must be None."
+        "When `sampled_inputs` is provided, `knot_low` and `knot_high` must be `None`."
     assert activation is not None, \
-        "When `sampled_inputs` is provided, `activation` must be provided."
-    for i, layer in enumerate(model.modules()):
+        "When `sampled_inputs` is provided, `activation` must also be provided."
+    for i, layer in enumerate(model.children()):
         assert isinstance(layer, torch.nn.Linear), \
             "When `sampled_inputs` is provided, the model must be a pure MLP."
-        apply_kgi_to_layer(layer, None, None,  # noqa
-                           sampled_inputs, sampled_inputs_clip_ratio,
+        apply_kgi_to_layer(layer, sampled_inputs=sampled_inputs,
+                           sampled_inputs_clip_ratio=sampled_inputs_clip_ratio,
                            perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
         sampled_inputs = activation(layer.forward(sampled_inputs))
