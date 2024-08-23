@@ -80,9 +80,24 @@ def apply_kgi_to_model(model, knot_low=None, knot_high=None,
     if sampled_inputs is None:
         assert knot_low is not None and knot_high is not None, \
             "When `sampled_inputs` is `None`, `knot_low` and `knot_high` must be provided."
+        # handle list of knot_low and knot_high
+        n_linear = 0
         for layer in model.children():
             if isinstance(layer, torch.nn.Linear):
-                apply_kgi_to_layer(layer, knot_low=knot_low, knot_high=knot_high,
+                n_linear += 1
+        if isinstance(knot_low, list):
+            assert len(knot_low) == n_linear, "Invalid number of elements in `knot_low`"
+        else:
+            knot_low = [knot_low] * n_linear
+        if isinstance(knot_high, list):
+            assert len(knot_high) == knot_high, "Invalid number of elements in `knot_high`"
+        else:
+            knot_high = [knot_high] * n_linear
+
+        # KGI
+        for layer, low, high in zip(model.children(), knot_low, knot_high):
+            if isinstance(layer, torch.nn.Linear):
+                apply_kgi_to_layer(layer, knot_low=low, knot_high=high,
                                    perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
         return
 
