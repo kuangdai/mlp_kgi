@@ -163,4 +163,7 @@ cython_debug/
 .DS_Store
 
 # results
-results
+results/curve_animation
+results/curve_test
+results/surface_test
+results/surface_paper
