@@ -90,7 +90,7 @@ def apply_kgi_to_model(model, knot_low=None, knot_high=None,
         else:
             knot_low = [knot_low] * n_linear
         if isinstance(knot_high, list):
-            assert len(knot_high) == knot_high, "Invalid number of elements in `knot_high`"
+            assert len(knot_high) == n_linear, "Invalid number of elements in `knot_high`"
         else:
             knot_high = [knot_high] * n_linear
 
