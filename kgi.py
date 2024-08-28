@@ -110,10 +110,9 @@ def apply_kgi_to_model(model, knot_low=None, knot_high=None,
         "When `sampled_inputs` is provided, `knot_low` and `knot_high` must be `None`."
     assert activation is not None, \
         "When `sampled_inputs` is provided, `activation` must also be provided."
-    for i, layer in enumerate(model.children()):
-        assert isinstance(layer, torch.nn.Linear), \
-            "When `sampled_inputs` is provided, the model must be a pure MLP."
-        apply_kgi_to_layer(layer, sampled_inputs=sampled_inputs,
-                           sampled_inputs_clip_ratio=sampled_inputs_clip_ratio,
-                           perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
-        sampled_inputs = activation(layer.forward(sampled_inputs))
+    for i, layer in enumerate(model.modules()):
+        if isinstance(layer, torch.nn.Linear):
+            apply_kgi_to_layer(layer, sampled_inputs=sampled_inputs,
+                               sampled_inputs_clip_ratio=sampled_inputs_clip_ratio,
+                               perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
+            sampled_inputs = activation(layer.forward(sampled_inputs))
