@@ -22,19 +22,7 @@ def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
     # get original
     n, m = layer.weight.data.shape
     w0 = layer.weight.data
-    if layer.bias is None:
-        layer.bias = torch.nn.Parameter(torch.zeros(layer.out_features))
-        warnings.warn("KGI requires bias. "
-                      "Zero bias is now created.", UserWarning)
-    b0 = layer.bias.data
-
-    # for numerical stability, we do not allow zero bias
-    if torch.all(torch.abs(b0) < torch.finfo(b0.dtype).eps):
-        bound = torch.sqrt(3. / torch.tensor(m))  # use He Uniform
-        b0 = torch.rand(n) * 2 * bound - bound
-        layer.bias.data = b0
-        warnings.warn("KGI does not allow zero bias. "
-                      "The bias is now sampled from He Uniform before KGI.", UserWarning)
+    b0 = layer.bias.data if layer.bias is not None else torch.zeros(n)
 
     # sample knots
     if sampled_inputs is not None:
@@ -55,6 +43,9 @@ def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
         # compute b by KGI
         b_kgi = -torch.mv(w0, x_knot)
         # perturb b
+        if layer.bias is None:
+            layer.bias = torch.nn.Parameter(b0)
+            warnings.warn("KGI has added bias to a layer created without bias.", UserWarning)
         layer.bias.data = (1 - perturb_factor) * b_kgi + perturb_factor * b0
     else:
         # compute w by KGI
