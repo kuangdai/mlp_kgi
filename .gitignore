@@ -166,4 +166,3 @@ cython_debug/
 results/curve_animation
 results/curve_test
 results/surface_test
-results/surface_paper
