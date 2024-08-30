@@ -22,6 +22,10 @@ def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
     # get original
     n, m = layer.weight.data.shape
     w0 = layer.weight.data
+    if layer.bias is None:
+        layer.bias = torch.nn.Parameter(torch.zeros(layer.out_features))
+        warnings.warn("KGI requires bias. "
+                      "Zero bias is now created.", UserWarning)
     b0 = layer.bias.data
 
     # for numerical stability, we do not allow zero bias
