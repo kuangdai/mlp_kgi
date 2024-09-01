@@ -54,8 +54,14 @@ from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
 
+#######
+# KGI #
+#######
+from kgi import apply_kgi_to_layer
+
+
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.45.0.dev0")
+# check_min_version("4.45.0.dev0")
 
 require_version("datasets>=2.14.0", "To fix: pip install -r examples/pytorch/language-modeling/requirements.txt")
 
@@ -234,19 +240,39 @@ class DataTrainingArguments:
                 extension = self.validation_file.split(".")[-1]
                 assert extension in ["csv", "json", "txt"], "`validation_file` should be a csv, a json or a txt file."
 
+#######
+# KGI #
+#######
+@dataclass
+class KGIArguments:
+    kgi: bool = field(
+        default=False,
+        metadata={
+            "help": (
+                "KGI switch."
+            )
+        },
+    )
+
 
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, KGIArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, kgi_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args, kgi_args = parser.parse_args_into_dataclasses()
+
+    # output dir in same structure of config
+    if training_args.output_dir == 'auto':
+        training_args.output_dir = str(os.path.abspath(sys.argv[1])).replace(
+            'configs/', 'results/').replace('.json', '')
+    training_args.run_name = training_args.output_dir.split("results/")[1].replace('/', '.')
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -390,9 +416,9 @@ def main():
         "trust_remote_code": model_args.trust_remote_code,
     }
     if model_args.config_name:
-        config = AutoConfig.from_pretrained(model_args.config_name, **config_kwargs)
+        assert False, "KGI only supports pretrain."
     elif model_args.model_name_or_path:
-        config = AutoConfig.from_pretrained(model_args.model_name_or_path, **config_kwargs)
+        assert False, "KGI only supports pretrain."
     else:
         config = CONFIG_MAPPING[model_args.model_type]()
         logger.warning("You are instantiating a new config instance from scratch.")
@@ -439,6 +465,26 @@ def main():
         model = AutoModelForCausalLM.from_config(config, trust_remote_code=model_args.trust_remote_code)
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
         logger.info(f"Training new model from scratch - Total size={n_params/2**20:.2f}M params")
+
+    #######
+    # KGI #
+    #######
+    if kgi_args.kgi:
+        print("#######")
+        print("# KGI #")
+        print("#######")
+        for name, layer in model.named_modules():
+            if isinstance(layer, torch.nn.Linear):
+                if "mlp.c_proj" in name:
+                    print(f"Applying KGI to layer: {name} with range [0, 1]")
+                    apply_kgi_to_layer(layer, knot_low=0., knot_high=1.,
+                                       perturb_factor=0.2, kgi_by_bias=True)
+                else:
+                    print(f"Applying KGI to layer: {name} with range [-1, 1]")
+                    apply_kgi_to_layer(layer, knot_low=-1., knot_high=1.,
+                                       perturb_factor=0.2, kgi_by_bias=True)
+            else:
+                print(f"Skipping layer: {name}")
 
     # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
     # on a small vocab and want a smaller embedding size, remove this test.
