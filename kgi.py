@@ -6,7 +6,7 @@ warnings.simplefilter("once", UserWarning)
 
 
 def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
-                       sampled_inputs=None, z_score=1.0,
+                       sampled_inputs=None, sampled_inputs_clip_ratio=0.1,
                        perturb_factor=0.2, kgi_by_bias=True):
     """
     Apply KGI to a layer
@@ -14,7 +14,7 @@ def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
     :param knot_low: lower bound of knot positions
     :param knot_high: upper bound of knot positions
     :param sampled_inputs: sampled inputs for automatically determining bounds
-    :param z_score: z-score to determine range of knot
+    :param sampled_inputs_clip_ratio: ratio to clip sampled inputs at both min/max ends
     :param perturb_factor: factor to perturb the KGI-based weight or bias
     :param kgi_by_bias: whether to achieve KGI by bias (`True`) or weight (`False`)
     :return: the re-initialized `nn.Linear`
@@ -29,10 +29,11 @@ def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
         # automatically determine bounds
         assert knot_low is None and knot_high is None, \
             "When `sampled_inputs` is provided, `knot_low` and `knot_high` must be `None`."
-        mean = sampled_inputs.mean()
-        std = sampled_inputs.std()
-        knot_low = mean - std * z_score
-        knot_high = mean + std * z_score
+        min_ = sampled_inputs.min()
+        max_ = sampled_inputs.max()
+        margin = (max_ - min_) * sampled_inputs_clip_ratio
+        knot_low = min_ + margin
+        knot_high = max_ - margin
     else:
         assert knot_low is not None and knot_high is not None, \
             "When `sampled_inputs` is `None`, `knot_low` and `knot_high` must be provided."
@@ -57,7 +58,7 @@ def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
 
 
 def apply_kgi_to_model(model, knot_low=None, knot_high=None,
-                       sampled_inputs=None, z_score=1.0,
+                       sampled_inputs=None, sampled_inputs_clip_ratio=0.1, activation=None,
                        perturb_factor=0.2, kgi_by_bias=True):
     """
     Apply KGI to a model
@@ -65,7 +66,8 @@ def apply_kgi_to_model(model, knot_low=None, knot_high=None,
     :param knot_low: lower bound of knot positions
     :param knot_high: upper bound of knot positions
     :param sampled_inputs: sampled inputs for automatically determining bounds
-    :param z_score: z-score to determine range of knot
+    :param sampled_inputs_clip_ratio: ratio to clip sampled inputs at both min/max ends
+    :param activation: activation functions, used when `sampled_inputs` is provided
     :param perturb_factor: factor to perturb the KGI-based weight or bias
     :param kgi_by_bias: whether to achieve KGI by bias (`True`) or weight (`False`)
     :return: the re-initialized `nn.Module`
@@ -101,8 +103,11 @@ def apply_kgi_to_model(model, knot_low=None, knot_high=None,
     ###################################
     assert knot_low is None and knot_high is None, \
         "When `sampled_inputs` is provided, `knot_low` and `knot_high` must be `None`."
+    assert activation is not None, \
+        "When `sampled_inputs` is provided, `activation` must also be provided."
     for i, layer in enumerate(model.modules()):
         if isinstance(layer, torch.nn.Linear):
-            apply_kgi_to_layer(layer, sampled_inputs=sampled_inputs, z_score=z_score,
+            apply_kgi_to_layer(layer, sampled_inputs=sampled_inputs,
+                               sampled_inputs_clip_ratio=sampled_inputs_clip_ratio,
                                perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
-        sampled_inputs = layer.forward(sampled_inputs)
+            sampled_inputs = activation(layer.forward(sampled_inputs))
