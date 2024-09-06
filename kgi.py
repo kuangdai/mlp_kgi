@@ -7,7 +7,7 @@ warnings.simplefilter("once", UserWarning)
 
 def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
                        sampled_inputs=None, clip_ratio=0.1,
-                       perturb_factor=0.2, kgi_by_bias=True):
+                       perturb_factor=0.2, kgi_by_bias=False):
     """
     Apply KGI to a layer
     :param layer: the target `nn.Linear`
@@ -59,7 +59,7 @@ def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
 
 def apply_kgi_to_model(model, knot_low=None, knot_high=None,
                        sampled_inputs=None, clip_ratio=0.1,
-                       perturb_factor=0.2, kgi_by_bias=True):
+                       perturb_factor=0.2, kgi_by_bias=False):
     """
     Apply KGI to a model
     :param model: the target `nn.Module`
