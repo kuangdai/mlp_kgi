@@ -7,7 +7,8 @@ warnings.simplefilter("once", UserWarning)
 
 def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
                        sampled_inputs=None, clip_ratio=0.1,
-                       perturb_factor=0.2, kgi_by_bias=False):
+                       perturb_factor=0.2, kgi_by_bias=False,
+                       homogenous_factor=1.):
     """
     Apply KGI to a layer
     :param layer: the target `nn.Linear`
@@ -17,6 +18,7 @@ def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
     :param clip_ratio: ratio to clip sampled inputs at both min/max ends
     :param perturb_factor: factor to perturb the KGI-based weight or bias
     :param kgi_by_bias: whether to achieve KGI by bias (`True`) or weight (`False`)
+    :param homogenous_factor: factor to scale homogenous part of KGI weight
     :return: the re-initialized `nn.Linear`
     """
     # get original
@@ -52,14 +54,15 @@ def apply_kgi_to_layer(layer, knot_low=None, knot_high=None,
         x2 = torch.dot(x_knot, x_knot)
         wp = -torch.outer(b0, x_knot) / x2  # particular solution
         wh = w0 - torch.outer(torch.mv(w0, x_knot), x_knot) / x2  # homogenous solution
-        w_kgi = wp + wh
+        w_kgi = wp + wh * homogenous_factor
         # perturb w
         layer.weight.data = (1 - perturb_factor) * w_kgi + perturb_factor * w0
 
 
 def apply_kgi_to_model(model, knot_low=None, knot_high=None,
                        sampled_inputs=None, clip_ratio=0.1,
-                       perturb_factor=0.2, kgi_by_bias=False):
+                       perturb_factor=0.2, kgi_by_bias=False,
+                       homogenous_factor=1.0):
     """
     Apply KGI to a model
     :param model: the target `nn.Module`
@@ -69,6 +72,7 @@ def apply_kgi_to_model(model, knot_low=None, knot_high=None,
     :param clip_ratio: ratio to clip sampled inputs at both min/max ends
     :param perturb_factor: factor to perturb the KGI-based weight or bias
     :param kgi_by_bias: whether to achieve KGI by bias (`True`) or weight (`False`)
+    :param homogenous_factor: factor to scale homogenous part of KGI weight
     :return: the re-initialized `nn.Module`
     """
     if sampled_inputs is None:
@@ -93,7 +97,8 @@ def apply_kgi_to_model(model, knot_low=None, knot_high=None,
         for layer in model.modules():
             if isinstance(layer, torch.nn.Linear):
                 apply_kgi_to_layer(layer, knot_low=knot_low[loc], knot_high=knot_high[loc],
-                                   perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
+                                   perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias,
+                                   homogenous_factor=homogenous_factor)
                 loc += 1
         return
 
@@ -105,5 +110,6 @@ def apply_kgi_to_model(model, knot_low=None, knot_high=None,
     for i, layer in enumerate(model.modules()):
         if isinstance(layer, torch.nn.Linear):
             apply_kgi_to_layer(layer, sampled_inputs=sampled_inputs, clip_ratio=clip_ratio,
-                               perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias)
+                               perturb_factor=perturb_factor, kgi_by_bias=kgi_by_bias,
+                               homogenous_factor=homogenous_factor)
         sampled_inputs = layer.forward(sampled_inputs)
