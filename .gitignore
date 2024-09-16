@@ -168,3 +168,4 @@ results/curve_test
 results/surface_test
 07_gpt2/results
 datasets_torch
+datasets/*.pkl
