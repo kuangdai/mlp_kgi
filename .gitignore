@@ -166,6 +166,7 @@ cython_debug/
 results/curve_animation
 results/curve_test
 results/surface_test
+results/disent_models
 07_gpt2/results
 datasets_torch
 datasets/*.pkl
