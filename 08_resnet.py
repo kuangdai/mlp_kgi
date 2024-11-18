@@ -17,12 +17,12 @@ from tqdm import tqdm
 # Argument parser
 def parse_args():
     parser = argparse.ArgumentParser(description="Train ResNet34 for Denoising on CelebA")
-    parser.add_argument("--max_data", type=int, default=50000, help="Maximum number of images")
-    parser.add_argument("--batch_size", type=int, default=128, help="Batch size for training and testing")
+    parser.add_argument("--max_data", type=int, default=None, help="Maximum number of images")
+    parser.add_argument("--batch_size", type=int, default=512, help="Batch size for training and testing")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate for optimizer")
-    parser.add_argument("--epochs", type=int, default=1000, help="Number of epochs for training")
+    parser.add_argument("--epochs", type=int, default=200, help="Number of epochs for training")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for reproducibility")
-    parser.add_argument("--test_every", type=int, default=100, help="Test every n epochs")
+    parser.add_argument("--test_every", type=int, default=10, help="Test every n epochs")
     parser.add_argument("--noise_level", type=float, default=0.1,
                         help="Standard deviation of Gaussian noise added to images")
     parser.add_argument("--KGI", action="store_true", help="Activate KGI")
