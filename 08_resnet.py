@@ -49,8 +49,8 @@ def plot_noisy_vs_clean(clean_dataset, amp=0.1, num_samples=5):
         noisy_img = add_gaussian_noise(clean_img, amp)
 
         # Convert from tensor to numpy and denormalize
-        clean_img = clean_img.permute(1, 2, 0).cpu().numpy() * 0.5 + 0.5  # Un-normalize
-        noisy_img = noisy_img.permute(1, 2, 0).cpu().numpy() * 0.5 + 0.5  # Un-normalize
+        clean_img = clean_img.permute(1, 2, 0).cpu().numpy()
+        noisy_img = noisy_img.permute(1, 2, 0).cpu().numpy()
 
         # Clip values to [0, 1] for proper visualization
         noisy_img = np.clip(noisy_img, 0, 1)
