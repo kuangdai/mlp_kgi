@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 # Argument parser
 def parse_args():
-    parser = argparse.ArgumentParser(description="Train ResNet34 for Denoising on CelebA")
+    parser = argparse.ArgumentParser(description="Train UNet for Denoising on CelebA")
     parser.add_argument("--max_data", type=int, default=None, help="Maximum number of images")
     parser.add_argument("--batch_size", type=int, default=512, help="Batch size for training and testing")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate for optimizer")
@@ -151,9 +151,9 @@ def main():
     set_seed(args.seed)
 
     # Paths for saving results
-    os.makedirs("./results/resnet_paper", exist_ok=True)
-    train_results_path = f"./results/resnet_paper/train_{args.seed}_{args.KGI}.txt"
-    test_results_path = f"./results/resnet_paper/test_{args.seed}_{args.KGI}.txt"
+    os.makedirs("./results/unet_paper", exist_ok=True)
+    train_results_path = f"./results/unet_paper/train_{args.seed}_{args.KGI}.txt"
+    test_results_path = f"./results/unet_paper/test_{args.seed}_{args.KGI}.txt"
 
     # Device setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
