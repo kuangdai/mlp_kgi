@@ -14,6 +14,40 @@ from torchvision import transforms
 from tqdm import tqdm
 
 
+# Apply KGI to a Conv2d layer
+def apply_kgi_to_layer(layer, height, width, knot_low=None, knot_high=None,
+                       perturb_factor=0.2):
+    # get original
+    n_o, n_i, k1, k2 = layer.weight.data.shape
+    x_knot = torch.rand(1, n_i, height, width) * (knot_high - knot_low) + knot_low
+
+    # compute b by KGI
+    b0 = layer.bias.data if layer.bias is not None else torch.zeros(n_o)
+    b_kgi = -(layer(x_knot) - b0[None, :, None, None])
+    # perturb b
+    if layer.bias is None:
+        layer.bias = torch.nn.Parameter(b0)
+    layer.bias.data = (1 - perturb_factor) * b_kgi[0].mean(dim=[1, 2]) + perturb_factor * b0
+
+
+# Apply KGI to UNET
+def apply_kgi_to_unet(module, prefix=""):
+    for name, layer in module.named_children():
+        full_name = f"{prefix}.{name}" if prefix else name
+        if isinstance(layer, nn.Conv2d):
+            if full_name == "conv":
+                img_size = 128
+            elif "bottleneck" in full_name:
+                img_size = 8
+            else:
+                order = int(full_name.split(".")[0][-1])
+                img_size = 128 // 2 ** (order - 1)
+            apply_kgi_to_layer(layer, img_size, img_size, knot_low=0., knot_high=1., perturb_factor=0.2)
+            print(f"Conv2d Layer applied: {full_name}, {img_size}")
+        if isinstance(layer, nn.Module):
+            apply_kgi_to_unet(layer, full_name)
+
+
 # Argument parser
 def parse_args():
     parser = argparse.ArgumentParser(description="Train UNet for Denoising on CelebA")
@@ -162,7 +196,8 @@ def main():
     transforms_clean = transforms.Compose([
         transforms.CenterCrop(178),
         transforms.Resize((128, 128)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
     ])
 
     # Path to the extracted CelebA dataset
@@ -183,6 +218,9 @@ def main():
     model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet',
                            in_channels=3, out_channels=3, init_features=32, pretrained=False)
     model.to(device)
+
+    if args.KGI:
+        apply_kgi_to_unet(model)
 
     # Loss and optimizer
     criterion = nn.MSELoss()
