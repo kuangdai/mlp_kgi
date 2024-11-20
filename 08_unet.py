@@ -216,10 +216,9 @@ def main():
     # Model
     model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet',
                            in_channels=3, out_channels=3, init_features=32, pretrained=False)
-    model.to(device)
-
     if args.KGI:
         apply_kgi_to_unet(model)
+    model.to(device)
 
     # Loss and optimizer
     criterion = nn.MSELoss()
