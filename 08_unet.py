@@ -196,8 +196,7 @@ def main():
     transforms_clean = transforms.Compose([
         transforms.CenterCrop(178),
         transforms.Resize((128, 128)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        transforms.ToTensor()
     ])
 
     # Path to the extracted CelebA dataset
