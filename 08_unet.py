@@ -17,13 +17,14 @@ from tqdm import tqdm
 # Apply KGI to a Conv2d layer
 def apply_kgi_to_layer(layer, height, width, knot_low=None, knot_high=None,
                        perturb_factor=0.2):
-    # get original
+    # sample knot
     n_o, n_i, k1, k2 = layer.weight.data.shape
     x_knot = torch.rand(1, n_i, height, width) * (knot_high - knot_low) + knot_low
 
     # compute b by KGI
     b0 = layer.bias.data if layer.bias is not None else torch.zeros(n_o)
     b_kgi = -(layer(x_knot) - b0[None, :, None, None])
+
     # perturb b
     if layer.bias is None:
         layer.bias = torch.nn.Parameter(b0)
